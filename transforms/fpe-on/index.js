@@ -6,6 +6,19 @@ module.exports = function transformer(file, api) {
   const options = getOptions();
   const root = j(file.source);
 
+  let alreadyHasImport = false;
+
+  const importDeclaration = root.find(j.ImportDeclaration, {
+    source: {
+      value: '@ember/object/evented',
+    },
+  });
+
+  const importComputed = importDeclaration.find(j.ImportSpecifier, { imported: { name: 'on' } });
+
+  if (importComputed.size()) alreadyHasImport = true;
+
+
   root
     .find(j.CallExpression, {
       callee: {
@@ -21,8 +34,13 @@ module.exports = function transformer(file, api) {
         j.literal("@ember/object/evented")
       );
 
-      let body = root.get().value.program.body;
-      body.unshift(onImport);
+
+      if (!alreadyHasImport) {
+        let body = root.get().value.program.body;
+        body.unshift(onImport);
+
+        alreadyHasImport = true;
+      }
 
       return j.callExpression(
         j.identifier("on"),
@@ -30,6 +48,6 @@ module.exports = function transformer(file, api) {
       );
     });
 
-  
+
   return root.toSource({quote: 'single'});
 }
